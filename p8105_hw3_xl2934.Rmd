@@ -8,6 +8,8 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(message = FALSE, warning  = FALSE)
 library(tidyverse)
+library(httr)
+library(jsonlite)
 ```
 
 # Problem 1
@@ -17,11 +19,112 @@ library(p8105.datasets)
 data("instacart")
 
 str(instacart)
+instacart
 ```
 
-As the `str` function showing, `instacart` is a dataframe with 1384617 observations of  15 variables.
-Write a short description of the dataset, noting the size and structure of the data, describing some key variables, and giving illstrative examples of observations.
+As the `str` function showing, `instacart` is a dataframe with 1384617 observations of  15 variables. There are some key variables.  `order_id` and `user_id` can help to make the dataframe more readable by using `pivot_wider`. `reordered` and variables about order time help us to analyse user's behavior. For example, we can conclude that ice cream is the most frequently ordered products late at night by counting observations with ice cream in specific time period.
+
+* How many aisles are there, and which aisles are the most items ordered from.?
+```{r}
+aisle_count = instacart %>% 
+  group_by(aisle) %>% 
+  summarize(n = n()) 
+
+aisle_count %>% 
+  knitr::kable()
+
+aisle_count %>% 
+  filter(min_rank(desc(n)) == 1) %>% 
+  knitr::kable()
+```
+There are 134 aisles in total. Fresh vegetables are the most items ordered from.
+
+* Make a plot that shows the number of items ordered in each aisle, limiting this to aisles with more than 10000 items ordered. Arrange aisles sensibly, and organize your plot so others can read it.
+```{r}
+aisle_count %>% 
+  filter(n > 10000) %>% 
+  arrange(n) %>% 
+  ggplot(aes(x = aisle, y = n)) + 
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(
+    title = "items' number ordered in aisles containing more than 10000 ordered",
+    y = "number of item"
+  )
+# how to Arrange aisles sensibly  
+```
+
+* Make a table showing the three most popular items in each of the aisles “baking ingredients”, “dog food care”, and “packaged vegetables fruits”. Include the number of times each item is ordered in your table.
+
+```{r}
+instacart %>% 
+  group_by(aisle, product_name) %>% 
+  summarize(n = n()) %>% 
+  filter(aisle == c("baking ingredients","dog food care","packaged vegetables fruits")  , min_rank(desc(n)) == 1) %>% 
+  knitr::kable()
+```
+
+* Make a table showing the mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week; format this table for human readers (i.e. produce a 2 x 7 table)
+```{r}
+instacart %>% 
+  filter(product_name == c("Pink Lady Apples", "Coffee Ice Cream")) %>%
+  group_by(product_name, order_dow) %>% 
+  summarize(
+    mean_hour = mean(order_hour_of_day)
+  ) %>% 
+  pivot_wider(
+    names_from = product_name,
+    values_from = mean_hour
+  ) %>% 
+  knitr::kable(digits = 1)
+
+# 2*7? order coffee ice cream and pink lady apples in the same time?
+```
+
 
 # Problem 2
+```{r}
+# data acuisition and description
+var_names = GET("https://chronicdata.cdc.gov/views/acme-vg9e.json") %>%
+  content("text") %>%
+  fromJSON() %>% 
+  .[["columns"]] %>% 
+  .[["name"]] %>% 
+  .[-23]
+
+brfss_smart2010 = 
+  GET("https://chronicdata.cdc.gov/views/acme-vg9e/rows.json") %>% 
+  content("text") %>%
+  fromJSON() %>% 
+  .[["data"]]
+
+row_as_tibble = function(row_as_list, var_names) {
+  var_list = row_as_list[9:30]
+  names(var_list) = var_names 
+  var_list[sapply(var_list, is.null)] <- NULL
+  as_tibble(var_list, validate = FALSE)
+}
+
+brfss_smart2010 = 
+  brfss_smart2010 %>% 
+  map(.x = ., ~row_as_tibble(.x, var_names)) %>% 
+  bind_rows
+
+## ???
+```
+First, do some data cleaning:
+
+* format the data to use appropriate variable names;
+* focus on the “Overall Health” topic
+* include only responses from “Excellent” to “Poor”
+*organize responses as a factor taking levels ordered from “Poor” to “Excellent”
+
+
+Using this dataset, do or answer the following (commenting on the results of each):
+
+* In 2002, which states were observed at 7 or more locations? What about in 2010?
+* Construct a dataset that is limited to Excellent responses, and contains, year, state, and a variable that averages the data_value across locations within a state. Make a “spaghetti” plot of this average value over time within a state (that is, make a plot showing a line for each state across years – the geom_line geometry and group aesthetic will help).
+* Make a two-panel plot showing, for the years 2006, and 2010, distribution of data_value for responses (“Poor” to “Excellent”) among locations in NY State.
+
 
 # Problem 3
