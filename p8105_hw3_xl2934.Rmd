@@ -31,9 +31,6 @@ aisle_count = instacart %>%
   summarize(n = n()) 
 
 aisle_count %>% 
-  knitr::kable()
-
-aisle_count %>% 
   filter(min_rank(desc(n)) == 1) %>% 
   knitr::kable()
 ```
@@ -92,6 +89,8 @@ var_names = GET("https://chronicdata.cdc.gov/views/acme-vg9e.json") %>%
   .[["name"]] %>% 
   .[-23]
 
+var_names
+
 brfss_smart2010 = 
   GET("https://chronicdata.cdc.gov/views/acme-vg9e/rows.json") %>% 
   content("text") %>%
@@ -105,12 +104,12 @@ row_as_tibble = function(row_as_list, var_names) {
   as_tibble(var_list, validate = FALSE)
 }
 
-brfss_smart2010 = 
-  brfss_smart2010 %>% 
-  map(.x = ., ~row_as_tibble(.x, var_names)) %>% 
-  bind_rows
+# brfss_smart2010 = 
+#   brfss_smart2010 %>% 
+#   map(.x = ., ~row_as_tibble(.x, var_names)) %>% 
+#   bind_rows
 
-## ???
+# ???
 ```
 First, do some data cleaning:
 
@@ -128,3 +127,80 @@ Using this dataset, do or answer the following (commenting on the results of eac
 
 
 # Problem 3
+
+* Load, tidy, and otherwise wrangle the data. Your final dataset should include all originally observed variables and values; have useful variable names; include a weekday vs weekend variable; and encode data with reasonable variable classes. Describe the resulting dataset (e.g. what variables exist, how many observations, etc).
+```{r}
+# import data
+data = read_csv(file = "./data/accel_data.csv")
+
+# arrange day
+day_of_week = tibble(day = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",  "Sunday"), day_ = 1:7)
+
+data = full_join(data, day_of_week) %>% 
+  select(week, day_, everything()) 
+
+# add variable about weekday and weekend
+weekday = 
+  data %>% 
+  filter(day_ < 6) %>% 
+  mutate(period = "weekday")
+
+weekend = 
+  data %>% 
+  filter(day_ > 5) %>% 
+  mutate(period = "weeekend")
+
+data = bind_rows(weekday, weekend) %>% 
+  select(period, everything()) %>% 
+  arrange(week, day_) %>% 
+  mutate(day_rank = 1:35)
+
+
+# tidy and change the variable class
+data = data  %>% 
+  pivot_longer(
+    activity.1:activity.1440,
+    names_to = "time(min)",
+    names_prefix = "activity.",
+    values_to = "activity_count"
+  )
+
+# show the structure of data set
+str(data)
+```
+The resulting data have 50400 observations in total and 8 variables including `period`, `week`, `day_`, `day_id`, `day`, `day_rank`, `time(min)` and `activity_count`.
+
+* Traditional analyses of accelerometer data focus on the total activity over the day. Using your tidied dataset, aggregate accross minutes to create a total activity variable for each day, and create a table showing these totals. Are any trends apparent?
+```{r}
+total = 
+  data %>% 
+  group_by( week, day_rank, day) %>% 
+  summarize(
+    sum = sum(activity_count)
+  )
+
+total %>%
+  knitr::kable()
+ 
+
+```
+```{r}
+total %>% 
+  ggplot(aes(x = day_rank, y = sum), fill = period) +
+  geom_bar(stat = "identity")
+```
+It seems that the person have less activity on Monday of first two weeks and weekends of last two weeks. I don't think there are other trends apparent there.
+
+* Accelerometer data allows the inspection activity over the course of the day. Make a single-panel plot that shows the 24-hour activity time courses for each day and use color to indicate day of the week. Describe in words any patterns or conclusions you can make based on this graph.
+```{r fig.lenth = 50}
+data
+ data %>% 
+  mutate(time_rank = 1:50400) %>% 
+  ggplot(aes(x = time_rank, y = activity_count), color = period) +
+  geom_bar(stat = "identity") +
+  ylim(0,9000) +
+  coord_flip()
+```
+
+
+
