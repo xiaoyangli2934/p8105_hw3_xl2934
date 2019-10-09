@@ -81,35 +81,10 @@ instacart %>%
 
 # Problem 2
 ```{r}
-# data acuisition and description
-var_names = GET("https://chronicdata.cdc.gov/views/acme-vg9e.json") %>%
-  content("text") %>%
-  fromJSON() %>% 
-  .[["columns"]] %>% 
-  .[["name"]] %>% 
-  .[-23]
+# data import
 
-var_names
+data("brfss_smart2010")
 
-brfss_smart2010 = 
-  GET("https://chronicdata.cdc.gov/views/acme-vg9e/rows.json") %>% 
-  content("text") %>%
-  fromJSON() %>% 
-  .[["data"]]
-
-row_as_tibble = function(row_as_list, var_names) {
-  var_list = row_as_list[9:30]
-  names(var_list) = var_names 
-  var_list[sapply(var_list, is.null)] <- NULL
-  as_tibble(var_list, validate = FALSE)
-}
-
-# brfss_smart2010 = 
-#   brfss_smart2010 %>% 
-#   map(.x = ., ~row_as_tibble(.x, var_names)) %>% 
-#   bind_rows
-
-# ???
 ```
 First, do some data cleaning:
 
@@ -117,13 +92,75 @@ First, do some data cleaning:
 * focus on the “Overall Health” topic
 * include only responses from “Excellent” to “Poor”
 *organize responses as a factor taking levels ordered from “Poor” to “Excellent”
+```{r}
+
+# data cleanning
+brfss_smart2010 = 
+  brfss_smart2010 %>% 
+  janitor::clean_names() %>% 
+  filter(topic == "Overall Health") %>% 
+  filter(response == c("Excellent", "Very good", "Good", "Fair", "Poor")) %>% 
+  mutate(response = factor(response, levels = c("Poor","Fair", "Good","Very good","Excellent")))
+
+```
 
 
 Using this dataset, do or answer the following (commenting on the results of each):
 
 * In 2002, which states were observed at 7 or more locations? What about in 2010?
+```{r}
+brfss_smart2010 %>% 
+  filter(year == 2002) %>% 
+  group_by(locationabbr) %>% 
+  summarize(
+    n_loc = n_distinct(locationdesc)
+  ) %>% 
+  filter(n_loc >= 7)
+
+brfss_smart2010 %>% 
+  filter(year == 2010) %>% 
+  group_by(locationabbr) %>% 
+  summarize(
+    n_loc = n_distinct(locationdesc)
+  ) %>% 
+  filter(n_loc >= 7)
+```
+According to table(s), there is none states were observed at 7 or more locations in 2002. But there are 9 states were observed at 7 or more locations in 2010, containing CA, CO, FL, MA, MD, NE, NJ, NY, TX. 
+
 * Construct a dataset that is limited to Excellent responses, and contains, year, state, and a variable that averages the data_value across locations within a state. Make a “spaghetti” plot of this average value over time within a state (that is, make a plot showing a line for each state across years – the geom_line geometry and group aesthetic will help).
+
+```{r}
+# build new dataset for plot
+data_plot1 = 
+  brfss_smart2010 %>% 
+  filter(response == "Excellent") %>% 
+  mutate(year = as.factor(year)) %>% 
+  select(year, locationabbr, data_value) %>% 
+  group_by(year, locationabbr) %>% 
+  summarize(
+    ave_value = mean(data_value)
+  ) 
+
+# make spaghetti plot
+data_plot1 %>% 
+  ggplot(aes( x = year, y = ave_value, group = locationabbr, color = locationabbr)) +
+  geom_point() +
+  geom_line()
+  
+```
+
 * Make a two-panel plot showing, for the years 2006, and 2010, distribution of data_value for responses (“Poor” to “Excellent”) among locations in NY State.
+```{r}
+data_plot2 =
+  brfss_smart2010 %>% 
+  filter(year == c("2006", "2010"), locationabbr == "NY") %>% 
+  select(year, response, data_value, locationdesc)
+
+data_plot2 %>% 
+  ggplot(aes(x = data_value, y = locationdesc, group = response, color = response)) +
+  geom_point() +
+  facet_grid(. ~ year)
+```
 
 
 # Problem 3
