@@ -8,8 +8,6 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(message = FALSE, warning  = FALSE)
 library(tidyverse)
-library(httr)
-library(jsonlite)
 ```
 
 # Problem 1
@@ -22,7 +20,7 @@ str(instacart)
 instacart
 ```
 
-As the `str` function showing, `instacart` is a dataframe with 1384617 observations of  15 variables. There are some key variables.  `order_id` and `user_id` can help to make the dataframe more readable by using `pivot_wider`. `reordered` and variables about order time help us to analyse user's behavior. For example, we can conclude that ice cream is the most frequently ordered products late at night by counting observations with ice cream in specific time period.
+As the `str` function showing, `instacart` is a dataframe with 1384617 observations of  15 variables. There are some key variables.  `order_id` and `user_id` can help to make the dataframe more readable by using `pivot_wider`. `reordered` and variables about order time help us to analyse user's behavior. For example, we can conclude that ice cream is the most frequently ordered products late at night by counting observations with ice cream in specific time period. The observations contain information of every order, including basic information like order_id, product name and id, aisle id name and id, and department name and id. Also, the observations also offer some information about shopping habits like order time, days_since_prior_order and reordered condition.
 
 * How many aisles are there, and which aisles are the most items ordered from.?
 ```{r}
@@ -30,10 +28,13 @@ aisle_count = instacart %>%
   group_by(aisle) %>% 
   summarize(n = n()) 
 
+str(aisle_count)
+
 aisle_count %>% 
   filter(min_rank(desc(n)) == 1) %>% 
   knitr::kable()
 ```
+
 There are 134 aisles in total. Fresh vegetables are the most items ordered from.
 
 * Make a plot that shows the number of items ordered in each aisle, limiting this to aisles with more than 10000 items ordered. Arrange aisles sensibly, and organize your plot so others can read it.
@@ -41,14 +42,14 @@ There are 134 aisles in total. Fresh vegetables are the most items ordered from.
 aisle_count %>% 
   filter(n > 10000) %>% 
   arrange(n) %>% 
-  ggplot(aes(x = aisle, y = n)) + 
+  ggplot(aes(x = reorder(aisle,n), y = n)) + 
   geom_bar(stat = "identity") +
   coord_flip() +
   labs(
     title = "items' number ordered in aisles containing more than 10000 ordered",
     y = "number of item"
   )
-# how to Arrange aisles sensibly  
+  
 ```
 
 * Make a table showing the three most popular items in each of the aisles “baking ingredients”, “dog food care”, and “packaged vegetables fruits”. Include the number of times each item is ordered in your table.
@@ -75,7 +76,6 @@ instacart %>%
   ) %>% 
   knitr::kable(digits = 1)
 
-# 2*7? order coffee ice cream and pink lady apples in the same time?
 ```
 
 
