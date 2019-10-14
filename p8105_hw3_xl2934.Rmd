@@ -197,7 +197,7 @@ data = bind_rows(weekday, weekend) %>%
 data = data  %>% 
   pivot_longer(
     activity.1:activity.1440,
-    names_to = "time(min)",
+    names_to = "time_min",
     names_prefix = "activity.",
     values_to = "activity_count"
   )
@@ -229,15 +229,23 @@ total %>%
 It seems that the person have less activity on Monday of first two weeks and weekends of last two weeks. I don't think there are other trends apparent there.
 
 * Accelerometer data allows the inspection activity over the course of the day. Make a single-panel plot that shows the 24-hour activity time courses for each day and use color to indicate day of the week. Describe in words any patterns or conclusions you can make based on this graph.
-```{r fig.lenth = 50}
-data
- data %>% 
-  mutate(time_rank = 1:50400) %>% 
-  ggplot(aes(x = time_rank, y = activity_count), color = period) +
+```{r fig.lenth = 30}
+
+data %>% 
+  ggplot(aes(x = time_min, y = activity_count, fill = reorder(day, day_))) +
   geom_bar(stat = "identity") +
   ylim(0,9000) +
-  coord_flip()
+  facet_grid(reorder(day, day_) ~ week) +
+  labs(
+    title = "24-hour activity time courses for each day"
+  ) + 
+  scale_fill_discrete(name = "Day")
+
+data %>% 
+  filter(day == "Saturday", activity_count > 2500)
+  
 ```
 
+According to the praph, the man had relative stable activity counts on Tuesday while in other day his activity have huge fluctuation across the day. To be mentioned, in week 4 and 5, he have nearly no activity counts, which might be caused by device malfunction.  
 
 
